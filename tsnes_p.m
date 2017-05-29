@@ -36,18 +36,18 @@ function ydata = tsnes_p(P, labels, no_dims)
     % Initialize some variables
     n = size(P, 1);                                     % number of instances
     min_cost = 99999;
-    mom_switch_iter = 500;                              % iteration at which momentum is changed
-    stop_lying_iter = 1000;                              % iteration at which lying about P-values is stopped
+    mom_switch_iter = 1000;                              % iteration at which momentum is changed
+    stop_lying_iter = 2000;                              % iteration at which lying about P-values is stopped
     max_iter = 10000;                                    % maximum number of iterations
     
-    momentum = 0.2;                                    % initial momentum
-    final_momentum = 0.5;                               % value to which momentum is changed
-    eta = 1;                                      % initial learning rate
+    momentum = 0.005;                                    % initial momentum
+    final_momentum = 0.008;                               % value to which momentum is changed
+    eta = 2;                                      % initial learning rate
     min_gain = .00001;                                     % minimum gain for delta-bar-delta
-    max_gain = 100;
-    max_incs = pi/2;
-    lie = 4;
-    break_switch = 0;
+    max_gain = 1;
+    max_incs = 0.03;
+    lie = 2;
+    break_switch = 1;
     
     % Make sure P-vals are set properly
     P(1:n + 1:end) = 0;                                 % set diagonal to zero
@@ -63,7 +63,7 @@ function ydata = tsnes_p(P, labels, no_dims)
         ydata = 1 .* [randn(n, 1), 2 .* randn(n, 1)];
     end
     y_incs  = zeros(size(ydata));
-    gains = ones(size(ydata)) ./ 10;
+    gains = ones(size(ydata)) ./ 100;
     fittest_y = ydata;
     
     % Run the iterations
@@ -82,12 +82,12 @@ function ydata = tsnes_p(P, labels, no_dims)
         %y_gard = 4 * diag(sum(L, 1)) - L) * ydata;
         ydata_dw = bsxfun(@minus, ydata(:,1),ydata(:,1)');
         ydata_dj = bsxfun(@minus, ydata(:,2),ydata(:,2)');
-        ydata_dj(abs(ydata_dj) > pi) = (-2 * pi) + ydata_dj(abs(ydata_dj) > pi);
+        ydata_dj(abs(ydata_dj) > pi) = (-2 * pi) + rem(ydata_dj(abs(ydata_dj) > pi), pi);
         y_grads = 4 * ([sum(L .* ydata_dw, 2), sum(L .* ydata_dj, 2)]);
         
         % Update the solution
-        gains = (gains *1.01) .* (sign(y_grads) ~= sign(y_incs)) ...
-            + (gains * .2) .* (sign(y_grads) == sign(y_incs));
+        gains = (gains + 0.0025) .* (sign(y_grads) ~= sign(y_incs)) ...
+            + (gains * .01) .* (sign(y_grads) == sign(y_incs));
         gains(gains < min_gain) = min_gain; 
         gains(gains > max_gain) = max_gain;
         y_incs = momentum * y_incs - eta * (gains .* y_grads);
@@ -127,7 +127,7 @@ function ydata = tsnes_p(P, labels, no_dims)
                 min_cost = cost;
                 fittest_y = ydata;
             end
-            if cost > min_cost *1.1 && break_switch
+            if cost > min_cost *1.3 && break_switch
                 ydata = fittest_y;
                 x = bsxfun(@times,sin(ydata(:,1)),cos(ydata(:,2)));
                 y = bsxfun(@times,sin(ydata(:,1)),sin(ydata(:,2)));

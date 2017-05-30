@@ -39,7 +39,7 @@ function ydata = tsne_p(P, labels, no_dims)
     final_momentum = 0.8;                               % value to which momentum is changed
     mom_switch_iter = 250;                              % iteration at which momentum is changed
     stop_lying_iter = 100;                              % iteration at which lying about P-values is stopped
-    max_iter = 1000;                                    % maximum number of iterations
+    max_iter = 2000;                                    % maximum number of iterations
     epsilon = 500;                                      % initial learning rate
     min_gain = .01;                                     % minimum gain for delta-bar-delta
     
@@ -49,14 +49,12 @@ function ydata = tsne_p(P, labels, no_dims)
     P = max(P ./ sum(P(:)), realmin);                   % make sure P-values sum to one
     const = sum(P(:) .* log(P(:)));                     % constant in KL divergence
     if ~initial_solution
-        %P = P * 4;                                      % lie about the P-vals to find better local minima
-        P = P * 1;
+        P = P * 4;                                      % lie about the P-vals to find better local minima
     end
     
     % Initialize the solution
     if ~initial_solution
-        %ydata = .0001 * randn(n, no_dims);
-        ydata = 2 * pi * rand(n, 2);
+        ydata = .0001 * randn(n, no_dims);
     end
     y_incs  = zeros(size(ydata));
     gains = ones(size(ydata));
@@ -65,15 +63,9 @@ function ydata = tsne_p(P, labels, no_dims)
     for iter=1:max_iter
         
         % Compute joint probability that point i and j are neighbors
-        %sum_ydata = sum(ydata .^ 2, 2);
-        %num = 1 ./ (1 + bsxfun(@plus, sum_ydata, bsxfun(@plus, sum_ydata', -2 * (ydata * ydata')))); % Student-t distribution
-        num = zeros(n,n);
-        for i = 1:size(ydata,1)
-            for j = 1:size(ydata,1)
-                num(i,j) = 1 ./ (1 + geodesic_2d(ydata(i,:),ydata(j,:)));
-            end
-        end
-        num(1:n+1:end) = 0;
+        sum_ydata = sum(ydata .^ 2, 2);
+        num = 1 ./ (1 + bsxfun(@plus, sum_ydata, bsxfun(@plus, sum_ydata', -2 * (ydata * ydata')))); % Student-t distribution
+        num(1:n+1:end) = 0;                                                 % set diagonal to zero
         Q = max(num ./ sum(num(:)), realmin);                               % normalize to get probabilities
         
         % Compute the gradients (faster implementation)
@@ -81,12 +73,11 @@ function ydata = tsne_p(P, labels, no_dims)
         y_grads = 4 * (diag(sum(L, 1)) - L) * ydata;
             
         % Update the solution
-        gains = (gains + .2) .* (sign(y_grads) ~= sign(y_incs)) ...         % note that the y_grads are actually -y_grads
+        gains = ( gains + .2) .* (sign(y_grads) ~= sign(y_incs)) ...         % note that the y_grads are actually -y_grads
               + (gains * .8) .* (sign(y_grads) == sign(y_incs));
         gains(gains < min_gain) = min_gain;
         y_incs = momentum * y_incs - epsilon * (gains .* y_grads);
-        %ydata = ydata + y_incs;
-        ydata = mod(ydata + y_incs, 2 * pi);
+        ydata = ydata + y_incs;
         ydata = bsxfun(@minus, ydata, mean(ydata, 1));
         
         % Update the momentum if necessary
@@ -104,24 +95,23 @@ function ydata = tsne_p(P, labels, no_dims)
         end
         
         % Display scatter plot (maximally first three dimensions)
-%         if ~rem(iter, 10) && ~isempty(labels)
-%             if no_dims == 1
-%                 scatter(ydata, ydata, 9, labels, 'filled');
-%             elseif no_dims == 2
-%                 scatter(ydata(:,1), ydata(:,2), 9, labels, 'filled');
-%             else
-%                 scatter3(ydata(:,1), ydata(:,2), ydata(:,3), 40, labels, 'filled');
-%             end
-%             axis tight
-%             axis off
-%             drawnow
-%         end
         if ~rem(iter, 10) && ~isempty(labels)
-            x = bsxfun(@times,sin(ydata(:,1)),cos(ydata(:,2)));
-            y = bsxfun(@times,sin(ydata(:,1)),sin(ydata(:,2)));
-            z = cos(ydata(:,1));
-            scatter3(x, y, z, 40, labels, 'filled');
+            if no_dims == 1
+                scatter(ydata, ydata, 20, labels, 'filled');
+            elseif no_dims == 2
+                scatter(ydata(:,1), ydata(:,2), 20, labels, 'filled');
+            else
+                scatter3(ydata(:,1), ydata(:,2), ydata(:,3), 40, labels, 'filled');
+            end
+            hold on
+            axis tight
+            title(['KL_{cur} = ', num2str(cost)]);
+            for i = 1:size(ydata(:,1))
+                plot([ydata(i,1)-y_incs(i,1),ydata(i,1)],[ydata(i,2)-y_incs(i,2),ydata(i,2)]);
+            end
+            %axis off
             drawnow
+            hold off
         end
     end
     

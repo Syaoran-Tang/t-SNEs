@@ -42,12 +42,12 @@ function ydata = tsnes_p(P, labels, no_dims)
     
     momentum = 0.005;                                    % initial momentum
     final_momentum = 0.008;                               % value to which momentum is changed
-    eta = 2;                                      % initial learning rate
-    min_gain = .00001;                                     % minimum gain for delta-bar-delta
-    max_gain = 1;
-    max_incs = 0.03;
-    lie = 2;
-    break_switch = 1;
+    eta = 1;                                      % initial learning rate
+    min_gain = .001;                                     % minimum gain for delta-bar-delta
+    max_gain = 1000;
+    max_incs = 0.3;
+    lie = 3;
+    break_switch = 0;
     
     % Make sure P-vals are set properly
     P(1:n + 1:end) = 0;                                 % set diagonal to zero
@@ -60,7 +60,7 @@ function ydata = tsnes_p(P, labels, no_dims)
     
     % Initialize the solution
     if ~initial_solution
-        ydata = 1 .* [randn(n, 1), 2 .* randn(n, 1)];
+        ydata = 0.001 .* [randn(n, 1), 2 .* randn(n, 1)];
     end
     y_incs  = zeros(size(ydata));
     gains = ones(size(ydata)) ./ 100;
@@ -82,15 +82,16 @@ function ydata = tsnes_p(P, labels, no_dims)
         %y_gard = 4 * diag(sum(L, 1)) - L) * ydata;
         ydata_dw = bsxfun(@minus, ydata(:,1),ydata(:,1)');
         ydata_dj = bsxfun(@minus, ydata(:,2),ydata(:,2)');
-        ydata_dj(abs(ydata_dj) > pi) = (-2 * pi) + rem(ydata_dj(abs(ydata_dj) > pi), pi);
+        ydata_dj(ydata_dj > pi) = (-2 * pi) + mod(ydata_dj(ydata_dj > pi), pi);
+        ydata_dj(ydata_dj < -pi) = mod(ydata_dj(ydata_dj < -pi), 2 * pi);
         y_grads = 4 * ([sum(L .* ydata_dw, 2), sum(L .* ydata_dj, 2)]);
         
         % Update the solution
-        gains = (gains + 0.0025) .* (sign(y_grads) ~= sign(y_incs)) ...
-            + (gains * .01) .* (sign(y_grads) == sign(y_incs));
+        gains = (gains * 1.025) .* (sign(y_grads) == sign(y_incs)) ...
+            + (gains * .01) .* (sign(y_grads) ~= sign(y_incs));
         gains(gains < min_gain) = min_gain; 
         gains(gains > max_gain) = max_gain;
-        y_incs = momentum * y_incs - eta * (gains .* y_grads);
+        y_incs = momentum * y_incs + eta * (gains .* y_grads);
         y_incs(abs(y_incs) > max_incs) = max_incs .* sign(y_incs(abs(y_incs) > max_incs));
         ydata = ydata + y_incs;
         %ydata = bsxfun(@minus, ydata, mean(ydata, 1));
@@ -133,7 +134,7 @@ function ydata = tsnes_p(P, labels, no_dims)
                 y = bsxfun(@times,sin(ydata(:,1)),sin(ydata(:,2)));
                 z = cos(ydata(:,1));
                 scatter3(x, y, z, 30, labels, 'filled');
-                title(['KL_{cur} = ', num2str(cost), ', KL_{min} = ', num2str(min_cost)]);
+                title(['\DeltaKL_{cur} = ', num2str(cost), ', \DeltaKL_{min} = ', num2str(min_cost)]);
                 axis([-1.1, 1.1, -1.1, 1.1, -1.1, 1.1]);
                 view(35,30);
                 drawnow
@@ -145,6 +146,15 @@ function ydata = tsnes_p(P, labels, no_dims)
                 y = bsxfun(@times,sin(ydata(:,1)),sin(ydata(:,2)));
                 z = cos(ydata(:,1));
                 scatter3(x, y, z, 30, labels, 'filled');
+%                 hold on
+%                 for i = 1:size(ydata(:,1))
+%                     dydata = ydata - y_incs;
+%                     dx = bsxfun(@times,sin(dydata(:,1)),cos(dydata(:,2)));
+%                     dy = bsxfun(@times,sin(dydata(:,1)),sin(dydata(:,2)));
+%                     dz = cos(dydata(:,1));
+%                     plot3([dx,z],[dy,y],[dz,z]);
+%                 end
+%                 hold off
                 title(['KL_{cur} = ', num2str(cost), ', KL_{min} = ', num2str(min_cost)]);
                 axis([-1.1, 1.1, -1.1, 1.1, -1.1, 1.1]);
                 view(35,30);

@@ -31,7 +31,7 @@ function ydata = tsnes(X, labels, no_dims, initial_dims, perplexity)
         initial_dims = min(40, size(X, 2));
     end
     if ~exist('perplexity', 'var') || isempty(perplexity)
-        perplexity = 30;
+        perplexity = 15;
     end
     
     % First check whether we already have an initial solution
@@ -73,7 +73,7 @@ function ydata = tsnes(X, labels, no_dims, initial_dims, perplexity)
     D = bsxfun(@plus, sum_X, bsxfun(@plus, sum_X', -2 * (X * X')));
     
     % Compute joint probabilities
-    P = d2p(D, perplexity, 1e-5);                                           % compute affinities using fixed perplexity
+    P = d2p(D, perplexity, 1e-4);                                           % compute affinities using fixed perplexity
     clear D
     
     % Run t-SNE

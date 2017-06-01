@@ -36,17 +36,18 @@ function ydata = tsnes_p(P, labels, no_dims)
     % Initialize some variables
     n = size(P, 1);                                     % number of instances
     min_cost = 99999;
-    mom_switch_iter = 1000;                              % iteration at which momentum is changed
-    stop_lying_iter = 2000;                              % iteration at which lying about P-values is stopped
+    mom_switch_iter = 800;                              % iteration at which momentum is changed
+    stop_lying_iter = 1000;                              % iteration at which lying about P-values is stopped
     max_iter = 10000;                                    % maximum number of iterations
     
-    momentum = 0.005;                                    % initial momentum
-    final_momentum = 0.008;                               % value to which momentum is changed
-    eta = 1;                                      % initial learning rate
+    momentum = 0.3;                                    % initial momentum
+    final_momentum = 0.5;                               % value to which momentum is changed
+    eta = 0.5;                                      % initial learning rate
     min_gain = .001;                                     % minimum gain for delta-bar-delta
     max_gain = 1000;
-    max_incs = 0.3;
-    lie = 3;
+    max_incs = pi;
+    damping = 1;
+    lie = 2;
     break_switch = 0;
     
     % Make sure P-vals are set properly
@@ -63,7 +64,7 @@ function ydata = tsnes_p(P, labels, no_dims)
         ydata = 0.001 .* [randn(n, 1), 2 .* randn(n, 1)];
     end
     y_incs  = zeros(size(ydata));
-    gains = ones(size(ydata)) ./ 100;
+    gains = ones(size(ydata));
     fittest_y = ydata;
     
     % Run the iterations
@@ -87,12 +88,14 @@ function ydata = tsnes_p(P, labels, no_dims)
         y_grads = 4 * ([sum(L .* ydata_dw, 2), sum(L .* ydata_dj, 2)]);
         
         % Update the solution
-        gains = (gains * 1.025) .* (sign(y_grads) == sign(y_incs)) ...
+        gains = (gains * 1.1) .* (sign(y_grads) == sign(y_incs)) ...
             + (gains * .01) .* (sign(y_grads) ~= sign(y_incs));
         gains(gains < min_gain) = min_gain; 
         gains(gains > max_gain) = max_gain;
-        y_incs = momentum * y_incs + eta * (gains .* y_grads);
-        y_incs(abs(y_incs) > max_incs) = max_incs .* sign(y_incs(abs(y_incs) > max_incs));
+        if find(y_incs(abs(y_incs) > max_incs))
+            damping = damping * max(max(abs(y_incs))) / max_incs;
+        end
+        y_incs = (momentum * y_incs + eta * (gains .* y_grads)) ./ damping;
         ydata = ydata + y_incs;
         %ydata = bsxfun(@minus, ydata, mean(ydata, 1));
         for i = 1: size(ydata(:,1))
@@ -155,7 +158,7 @@ function ydata = tsnes_p(P, labels, no_dims)
 %                     plot3([dx,z],[dy,y],[dz,z]);
 %                 end
 %                 hold off
-                title(['KL_{cur} = ', num2str(cost), ', KL_{min} = ', num2str(min_cost)]);
+                title(['\DeltaKL_{cur} = ', num2str(cost), ', \DeltaKL_{min} = ', num2str(min_cost), ',  \zeta = ', num2str(damping)]);
                 axis([-1.1, 1.1, -1.1, 1.1, -1.1, 1.1]);
                 view(35,30);
                 drawnow

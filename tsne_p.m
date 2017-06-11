@@ -103,15 +103,15 @@ function ydata = tsne_p(P, labels, no_dims)
             else
                 scatter3(ydata(:,1), ydata(:,2), ydata(:,3), 40, labels, 'filled');
             end
-            hold on
-            axis tight
-            title(['KL_{cur} = ', num2str(cost)]);
-            for i = 1:size(ydata(:,1))
-                plot([ydata(i,1)-y_incs(i,1),ydata(i,1)],[ydata(i,2)-y_incs(i,2),ydata(i,2)]);
-            end
+%             hold on
+%             axis tight
+%             title(['KL_{cur} = ', num2str(cost)]);
+%             for i = 1:size(ydata(:,1))
+%                 plot([ydata(i,1)-y_incs(i,1),ydata(i,1)],[ydata(i,2)-y_incs(i,2),ydata(i,2)]);
+%             end
             %axis off
             drawnow
-            hold off
+            %hold off
         end
     end
     

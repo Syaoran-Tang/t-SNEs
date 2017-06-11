@@ -80,6 +80,6 @@ function ydata = tsnes(X, labels, no_dims, initial_dims, perplexity)
     if initial_solution
         ydata = tsnes_p(P, labels, ydata);
     else
-        ydata = tsnes_p(P, labels, no_dims);
+        ydata = tsnes_p(P, labels,X_initial);
     end
     
